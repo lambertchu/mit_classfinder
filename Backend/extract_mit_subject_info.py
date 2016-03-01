@@ -15,6 +15,7 @@ try:
     		elif i > 2:
     			break
 
+    print "Loading W2V model..."
     w2v_model = Word2Vec.load_word2vec_format('/Users/lambertchu/Documents/MIT/SuperUROP/NLP_Data/GoogleNews-vectors-negative300.bin', binary=True)
 
 except:
@@ -23,8 +24,7 @@ except:
 
 
 # Get list of all MIT subjects
-#subjects = db_wrapper.get_all_mit_classes()
-subjects = ["  6.046  "]
+subjects = db_wrapper.get_all_mit_classes()
 count = 0
 
 print "Beginning extraction of descriptions..."
@@ -49,20 +49,20 @@ for subject in subjects:
 	new_result = result.replace(" : null", " : None")		# format for conversion to Python dictionary
 	dictionary = ast.literal_eval(new_result)				# conversion
 	info = dictionary["item"]
-	print info
 
 	description = info["description"]
 	if description != None:
-		token_list = description.translate(None, string.punctuation).split()	# tokenize
+		token_list = description.translate(None, string.punctuation).split()		# tokenize
 		keywords = filter(lambda word: word in w2v_model.vocab, token_list)			# remove invalid words
 	else:
 		keywords = []
 
-
-	db_wrapper.insert_subject_info(subject, sub_clean, info, description, keywords)
+	try:
+		db_wrapper.insert_subject_info(subject, sub_clean, info, description, keywords)
+	except:
+		print "Error inserting " + sub_clean
+		continue
 
 	count += 1
-	if count >= 1:
-		break
 	if count % 500 == 0:
 		print count

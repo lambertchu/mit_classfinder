@@ -7,12 +7,34 @@ for each of the remaining students
       recommend the top classes for next semester
       calculate coverage & accuracy based upon S (selected next semester) and R (recommended)
 """
-
 import sys
+import getopt
 import math
 import csv
 import generate_recommendations
 import db_wrapper
+
+
+
+"""
+Parse command line arguments
+"""
+# def parse_args(argv):
+#     try:
+#         opts, args = getopt.getopt(argv,"hi:o:",["numstudents=","ofile="])
+#     except getopt.GetoptError:
+#         print 'cross_validate.py -n <numstudents> -o <outputfile>'
+#         sys.exit(2)
+#     for opt, arg in opts:
+#         if opt == '-h':
+#             print 'cross_validate.py -n <numstudents> -o <outputfile>'
+#             sys.exit()
+#         elif opt in ("-n", "--numstudents"):
+#             numstudents = arg
+#         elif opt in ("-o", "--ofile"):
+#             outputfile = arg
+#     return (numstudents, outputfile)
+
 
 
 """
@@ -20,6 +42,7 @@ Calculate error of recommendations for one student
 Only applicable for recommendations of 2nd through last terms
 """
 def calc_error(student, terms, class_rankings_by_term):
+    # TODO: error handling of classes not in rankings dictionary
     term_errors = []
 
     for prev_term, cur_term in zip(terms, terms[1:]):
@@ -34,8 +57,11 @@ def calc_error(student, terms, class_rankings_by_term):
                     break
 
             # error_factor = (rank of class - total classes taken) / size of the universe
-            factor = max(0, (float(rank) - num_subjects) / (num_classes - num_subjects))
-            error += factor
+            try:
+                factor = max(0, (float(rank) - num_subjects) / (num_classes - num_subjects))
+                error += factor
+            except:
+                print "Error: %s %s" % (student, subject)
 
         # find the average error for that student's term
         error /= num_subjects
@@ -46,23 +72,31 @@ def calc_error(student, terms, class_rankings_by_term):
 
 
 if __name__ == "__main__":
+    if (len(sys.argv) != 4):
+        print "Invalid args"
+        sys.exit(1)
+    num_students = int(sys.argv[1])
+    major = "   6 3   " #sys.argv[2]
+    outputfile = sys.argv[3]
+
     # Get list of all classes at MIT
-    classes = db_wrapper.get_all_classes()
+    classes = db_wrapper.get_all_mit_classes()
     num_classes = len(classes)
+    print "Number of classes: %s" % num_classes
 
-    # Get 5000 random students as the test sample
+    # Get "num_students" random students as the test sample
     # ID range: 10001001 to 10027211 => 26211 students
-    print "Randomly selecting 5000 students as test sample for cross validation..."
-    target_students = db_wrapper.get_random_students(5000)  # TODO: make this a command line arg
-
+    print "Randomly selecting %s students as test sample for cross validation..." % num_students
+    random_students_and_classes = db_wrapper.get_random_students(num_students, major)
     print "Calculating errors..."
-    with open("cross_val_10B.csv", "wb") as f:
+    
+    with open(outputfile, "wb") as f:
         writer = csv.writer(f)
         
-        for student in target_students:
+        for student in random_students_and_classes:
             writer.writerow([student])
 
-            terms = db_wrapper.get_student_terms(student)
+            terms = sorted(random_students_and_classes[student])
             writer.writerow(terms[1:])
 
             class_rankings_by_term = generate_recommendations.generate_recommendations_by_importance(student, terms)

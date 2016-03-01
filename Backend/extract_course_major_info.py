@@ -18,17 +18,19 @@ majors = db_wrapper.get_all_majors()
 print len(majors)
 
 
+#done_majors = db_wrapper.get_majors_in_shared_classes_by_major()
+
 # Create nxn matrices (to be stored in database)
 for major in majors:
     print major.strip()
-    if major.strip() != "6 2":
+    if major.strip() != "15":
         continue
 
     print "Creating matrix of shared classes for " + major
     matrix = [[0 for x in xrange(num_classes)] for y in xrange(num_classes)]
 
     # Get all student-classes pairs for terms in which the student was declared in that major
-    student_class_dict = db_wrapper.get_student_classes_dict_by_major()
+    student_class_dict = db_wrapper.get_student_classes_dict_by_major(major)
 
     # Update the matrix
     for student, student_classes in student_class_dict.iteritems():
@@ -41,7 +43,7 @@ for major in majors:
             index += 1
 
 
-    # output matrix to CSV
+    # Output matrix to CSV
     # print "Outputting..."
     # with open("test_classes_popularity.csv", "wb") as f:
     #     writer = csv.writer(f)

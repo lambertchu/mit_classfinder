@@ -10,43 +10,33 @@ Generate recommendations for a given student using the "importance" methodology.
 Recommendations are for EVERY term that the student was enrolled in.
 """
 def generate_recommendations_by_importance(student, terms):
-    # create table: key = term, value = importance ratings of classes for that student
-    # used for calculating recommendation ratings
-    importance_table = {}
-
-    # create hash table with keys = terms, values = dictionary mapping class to ranking
-    # used for calculating errors
-    class_rankings_by_term = {}
+    # keys = terms, values = importance ratings for that term
+    importance_ratings_by_term = {}
 
     for term in terms:
-        print term
-        cursor.execute("SELECT DISTINCT Subject FROM complete_enrollment_data WHERE Identifier = %s AND Term_Number <= %s", (student,term))
-        student_classes = [c[0] for c in cursor.fetchall()]
+        student_classes = db_wrapper.get_student_classes_before_term(student, term)
+        new_classes = [x for x in classes if x not in student_classes]
 
         # calculate "importance" of each class that hasn't been taken by the student
         importance_ratings = {}
-        for cl in classes:
+        for cl in new_classes:
             total = 1
             for s in student_classes:
-                if cl not in student_classes:
-                    total_number_class = totals[s]
-                    shared_number = int(shared_classes_table[class_table[cl]][class_table[s]])
-                    
-                    if total_number_class != 0:
-                        total *= math.exp(0.5 * shared_number / total_number_class)
-
-            # TODO: include other modifiers here, i.e. time relevance and keyword match
-
-                else:
+                total_number_class = totals[s]
+                if total_number_class == 0:
                     break
+
+                shared_number = int(shared_classes_table[class_table[cl]][class_table[s]])
+                total *= math.exp(0.5 * shared_number / total_number_class)
+
+                # TODO: include other modifiers here, i.e. term relevance and keyword match
 
             importance_ratings[cl] = total       # record total for this class
 
-        importance_table[term] = importance_ratings
-        class_rankings_by_term[term] = sorted(importance_ratings, key=importance_ratings.get, reverse=True)
-        print class_rankings_by_term[term][0:9]    # prints top 10 recommendations
+        importance_ratings_by_term[term] = sorted(importance_ratings, key=importance_ratings.get, reverse=True)
+        # print importance_ratings_by_term[term][0:9]    # prints top 10 recommendations
     
-    return class_rankings_by_term
+    return importance_ratings_by_term
                 
 
 """
@@ -106,5 +96,5 @@ num_classes = len(classes)
 class_table = {k:v for k, v in zip(classes, xrange(num_classes))}
 
 # Recommend based upon student major
-shared_classes_table = get_matrix_by_major('  10 B   ')
+shared_classes_table = db_wrapper.get_matrix_by_major('6 3')
 totals = create_totals_table(shared_classes_table)
