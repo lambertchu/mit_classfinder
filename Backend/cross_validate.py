@@ -76,7 +76,7 @@ if __name__ == "__main__":
         print "Invalid args"
         sys.exit(1)
     num_students = int(sys.argv[1])
-    major = "   6 3   " #sys.argv[2]
+    major = "15" #sys.argv[2]
     outputfile = sys.argv[3]
 
     # Get list of all classes at MIT
@@ -87,16 +87,40 @@ if __name__ == "__main__":
     # Get "num_students" random students as the test sample
     # ID range: 10001001 to 10027211 => 26211 students
     print "Randomly selecting %s students as test sample for cross validation..." % num_students
-    random_students_and_classes = db_wrapper.get_random_students(num_students, major)
+    random_students_and_terms = db_wrapper.get_random_students(num_students, major)
+
+
+
+    ########## Create new matrix for the rest of the students in that major ###########
+    matrix = [[0 for x in xrange(num_classes)] for y in xrange(num_classes)]
+
+    # Get all student-classes pairs for terms in which the student was declared in that major
+    student_class_dict = db_wrapper.get_student_classes_dict_by_major(major)
+
+    # Remove students chosen randomly
+    for student in random_students_and_terms:
+        del student_class_dict[student]
+
+    # Update the matrix
+    for student, student_classes in student_class_dict.iteritems():
+        index = 0
+        while index < len(student_classes):
+            sc1 = student_classes[index]
+            sc1_pos = class_table[sc1]
+            for sc2 in student_classes:
+                matrix[sc1_pos][class_table[sc2]] += 1
+            index += 1
+
+
+
     print "Calculating errors..."
-    
     with open(outputfile, "wb") as f:
         writer = csv.writer(f)
         
-        for student in random_students_and_classes:
+        for student in random_students_and_terms:
             writer.writerow([student])
 
-            terms = sorted(random_students_and_classes[student])
+            terms = sorted(random_students_and_terms[student])
             writer.writerow(terms[1:])
 
             class_rankings_by_term = generate_recommendations.generate_recommendations_by_importance(student, terms)
