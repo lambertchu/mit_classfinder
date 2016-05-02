@@ -58,11 +58,14 @@ Recommendations are for the current semester and are based upon all classes take
 """
 def generate_recommendations(student, major, random_students, terms):
     recommendations_by_term = {}
+    candidate_classes_by_term = {}
 
     for term in terms:
         student_classes = db_wrapper.get_student_classes_before_term(student, term)
         new_classes = get_new_classes.get_classes_to_take(major, student_classes)
         all_classes = student_classes + new_classes
+
+        candidate_classes_by_term[term] = new_classes
         
         class_table = {k:v for k, v in zip(all_classes, xrange(len(all_classes)))}
         shared_classes_table = create_shared_classes_table(major, random_students, all_classes, class_table)     # consider caching
@@ -78,4 +81,5 @@ def generate_recommendations(student, major, random_students, terms):
         # Create list of classes in order of popularity
         recommendations_by_term[term] = sorted(importance_ratings, key=importance_ratings.get, reverse=True)
 
-    return recommendations_by_term
+
+    return recommendations_by_term, candidate_classes_by_term
