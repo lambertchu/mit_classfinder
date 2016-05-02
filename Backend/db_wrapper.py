@@ -41,8 +41,7 @@ def get_all_mit_classes():
 	mit_classes = []
 
 	for cl in classes:
-		clstp = cl.strip()
-		if clstp[0:2] == "HA" or clstp[0:2] == "MC" or (clstp[0:1] == "W" and clstp[0:3] != "WGS"):
+		if cl == None or cl[0:2] == "HA" or cl[0:2] == "MC" or (cl[0:1] == "W" and cl[0:3] != "WGS"):
 			continue
 		mit_classes.append(cl)
 
@@ -105,7 +104,7 @@ def get_students_of_class(cls):
 
 
 """
-Returns a dictionary of randomly-selected students that are of the given major, mapped to classes they've taken
+Returns a dictionary of randomly-selected students that are of the given major, mapped to terms that they declared the major
 """
 def get_random_students(num, major):
 	import random
@@ -139,13 +138,22 @@ def insert_matrix_by_major(major, matrix):
 	conn.commit()
 
 
+
 """
-Get all student-classes pairs for terms in which the student was declared in that major
+"""
+def get_student_classes_pairs(major):
+	cursor.execute("SELECT Identifier, Subject FROM complete_enrollment_data where Major1 = %s OR Major2 = %s", (major,major))
+	pairs = [p for p in cursor.fetchall()]
+	return pairs
+
+
+"""
+Get all student-classes pairs for terms in which students were declared in that major.
+Returns a dictionary mapping each student to a list of classes taken.
 """
 def get_student_classes_dict_by_major(major):
 	student_class_dict = {}
-	cursor.execute("SELECT Identifier, Subject FROM complete_enrollment_data where Major1 = %s OR Major2 = %s", (major,major))
-	pairs = [p for p in cursor.fetchall()]
+	pairs = get_student_classes_pairs(major)
 
 	for identifier, cls in pairs:
 		if identifier not in student_class_dict:
@@ -179,9 +187,9 @@ def get_student_terms_dict_by_major(major):
 Get the frequency of classes taken by students of the given major in the given term
 """
 def get_class_frequency_by_major_and_term(major, term):
+	cursor.execute("SELECT Subject FROM complete_enrollment_data where Term_Number = %s AND (Major1 = %s OR Major2 = %s)", (term,major,major))
+	subjects = [s[0] for s in cursor.fetchall()]
 	subjects_dict = {}
-	cursor.execute("SELECT Subject,Title FROM complete_enrollment_data where Term_Number = %s AND (Major1 = %s OR Major2 = %s)", (term,major,major))
-	subjects = [(s[0].strip(), s[1].strip()) for s in cursor.fetchall()]
 
 	for subject in subjects:
 		if subject not in subjects_dict:
@@ -190,6 +198,23 @@ def get_class_frequency_by_major_and_term(major, term):
 			subjects_dict[subject] += 1
 
 	return subjects_dict
+
+
+"""
+Get most popular classes in the given major for the given semester. Uses get_class_frequency_by_major_and_term() as a helper
+"""
+def get_most_popular_classes(major, term):
+	subjects_dict = get_class_frequency_by_major_and_term(major, term)
+	sorted_subjects = sorted(subjects_dict, key=subjects_dict.get, reverse=True)
+
+	classes = []
+	for subject in sorted_subjects[0:20]:
+		cursor.execute("SELECT Title FROM subject_info WHERE Subject = %s", (subject,))
+		title = cursor.fetchone()
+		info = (subject, title, subjects_dict[subject])
+		classes.append(info)
+
+	return classes
 
 
 """
