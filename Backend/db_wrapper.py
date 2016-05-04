@@ -22,7 +22,10 @@ def get_db_connection():
 	return conn
 
 
-###### GENERAL ######
+
+
+
+################## GENERAL ##################
 
 """
 Returns a list of all distinct classes taken by MIT undergraduates
@@ -56,7 +59,10 @@ def get_all_majors():
 	return majors
 
 
-###### STUDENT-BASED ######
+
+
+
+################## STUDENT-BASED ##################
 
 """
 Returns the list of terms that the given student has enrolled in
@@ -86,10 +92,10 @@ def get_student_classes_of_term(student, term):
 
 
 """
-Returns a list of classes that the student has taken during or prior to the given term
+Returns a list of classes that the student has taken prior to the given term
 """
 def get_student_classes_before_term(student, term):
-	cursor.execute("SELECT DISTINCT Subject FROM complete_enrollment_data WHERE Identifier = %s AND Term_Number <= %s", (student, term))
+	cursor.execute("SELECT DISTINCT Subject FROM complete_enrollment_data WHERE Identifier = %s AND Term_Number < %s", (student, term))
 	subjects = [subject[0] for subject in cursor.fetchall()]
 	return subjects
 
@@ -118,7 +124,10 @@ def get_random_students(num, major):
 	return subset
 
 
-###### MAJOR-BASED ######
+
+
+
+################## MAJOR-BASED ##################
 
 """
 Returns a 2D list of "class enrollment" for the given major
@@ -226,7 +235,10 @@ def get_majors_in_shared_classes_by_major():
 	return majors
 
 
-###### SUBJECT-BASED ######
+
+
+
+################## CLASS-BASED ##################
 
 """
 Parse subject info and insert to database

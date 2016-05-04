@@ -17,71 +17,36 @@ from generate_recs import generate_recommendations
 
 
 
-def calc_term_error(num_relevant_classes, taken_classes, recommendations):
+
+"""
+Returns the error of recommendations for one term of a single student.
+"""
+def calc_error(student, term, recommendations):
+    taken_classes = db_wrapper.get_student_classes_of_term(student, term)
+    relevant_classes = [c for c in taken_classes if c in recommendations]
+
+    # print "Recommendations: %s" % recommendations
+    # print "Relevant: %s" % relevant_classes
+
+    if len(recommendations) == 0 or len(relevant_classes) == 0:
+        return None
+
     error = 0
-    for subject in taken_classes:
+    for subject in relevant_classes:
+        rank = None
         for i in xrange(0, len(recommendations)):
-            rank = None
-            if recommendations[i] == subject:
-                rank = i+1   # rank is not zero-indexed
+            if subject == recommendations[i]:
+                rank = i
                 break
 
         # error_factor = (rank of class - total classes taken) / size of the universe
         if rank != None:
-            # factor = max(0, (float(rank) - len(relevant_classes)) / num_candidate_classes)
             factor = float(rank) / len(recommendations)
             error += factor
-        # print "Error: %s %s" % (student, subject)
 
     # find the average error for that student's term
-    error /= num_relevant_classes
+    error /= len(relevant_classes)
     return error
-
-
-"""
-Calculate error of recommendations for one student (all terms).
-Only applicable for recommendations of 2nd through last terms.
-Returns a list of the errors of each term.
-"""
-def calc_error(student, terms, recommendations_by_term, candidate_classes_by_term):
-    term_errors = []
-
-    for prev_term, cur_term in zip(terms, terms[1:]):
-        taken_classes = db_wrapper.get_student_classes_of_term(student, cur_term)
-
-        num_candidate_classes = len(candidate_classes_by_term[prev_term])
-        relevant_classes = [c for c in taken_classes if c in candidate_classes_by_term[prev_term]]
-
-        if num_candidate_classes == 0:
-            # print "%s satisfied all requirements on term %s" % (student, prev_term)
-            term_errors.append(0)
-            continue
-
-        if len(relevant_classes) == 0:
-            # print "No recommendations for %s in term %s" % (student, prev_term)
-            term_errors.append(1)
-            continue
-
-        error = 0
-        for subject in taken_classes:
-            for i in xrange(0, len(recommendations_by_term[prev_term])):
-                rank = None
-                if recommendations_by_term[prev_term][i] == subject:
-                    rank = i+1   # rank is not zero-indexed
-                    break
-
-            # error_factor = (rank of class - total classes taken) / size of the universe
-            if rank != None:
-                # factor = max(0, (float(rank) - len(relevant_classes)) / num_candidate_classes)
-                factor = float(rank) / num_candidate_classes
-                error += factor
-            # print "Error: %s %s" % (student, subject)
-
-        # find the average error for that student's term
-        error /= len(relevant_classes)
-        term_errors.append(error)
-
-    return term_errors
 
 
 
@@ -89,12 +54,12 @@ if __name__ == "__main__":
     num_students = 100
 
     # 6-2, 6-3, 2, 18, 20, 8, 16 (16 1, 16 2), 15, 14, 7 (7 A)
-    major = "18"
+    major = "6 3"
     outputfile = "Course_%s_error_results.csv" % major
 
     # mit_classes = db_wrapper.get_all_mit_classes()
-    # course_18_classes = [c for c in mit_classes if c.startswith('18.')]
-    # print course_18_classes
+    # specific_classes = [c for c in mit_classes if c.startswith('18.')]
+    # print specific_classes
 
 
     # Get "num_students" random students as the test sample
@@ -108,6 +73,14 @@ if __name__ == "__main__":
 
 
     ########## Generate recommendations and calculate errors ###########
+    total_errors = {}
+    for i in xrange(1, 17):
+        total_errors[i] = 0.0
+
+    total_students = {}
+    for i in xrange(1, 17):
+        total_students[i] = 0
+
 
     print "Generating recommendations and calculating errors..."
     with open(outputfile, "wb") as f:
@@ -117,11 +90,47 @@ if __name__ == "__main__":
             writer.writerow([student])
 
             terms = sorted(random_students_and_terms[student])
-            recommendations_by_term, candidate_classes_by_term = generate_recommendations(student, major, random_students, terms)
-            # recommendations_by_term, candidate_classes_by_term = generate_recommendations(student, major, random_students, terms, course_18_classes)
 
+            student_terms = []
+            student_term_errors = []
+            for term in terms:
+                recommendations = generate_recommendations(student, major, term, random_students)
+                # recommendations = generate_recommendations(student, major, term, random_students, specific_classes)
 
-            writer.writerow(terms[1:])
-            writer.writerow(calc_error(student, terms, recommendations_by_term, candidate_classes_by_term))
+                term_error = calc_error(student, term, recommendations)
+                
+                if term_error != None:
+                    student_terms.append(term)
+                    student_term_errors.append(term_error)
+                    total_errors[term] += term_error
+                    total_students[term] += 1
+
+            assert len(student_terms) == len(student_term_errors)
+            writer.writerow(student_terms)
+            writer.writerow(student_term_errors)
             writer.writerow([])
+
+
+        term_nums = ["Term Number"]
+        total_errors_list = ["Total Error"]
+        total_students_list = ["Number of Students"]
+        term_averages_list = ["Average Error"]
+        for term in xrange(1, 17):
+            term_nums.append(term)
+            if total_students[term] == 0:
+                assert total_errors[term] == 0
+                term_averages_list.append(None)
+            else:
+                term_averages_list.append(total_errors[term] / total_students[term])
+
+            total_errors_list.append(total_errors[term])
+            total_students_list.append(total_students[term])
+
+
+        writer.writerow(["Stats"])
+        writer.writerow(term_nums)
+        writer.writerow(total_errors_list)
+        writer.writerow(total_students_list)
+        writer.writerow(term_averages_list)
+
     sys.exit()

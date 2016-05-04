@@ -1,4 +1,5 @@
 import math
+from sets import Set
 import db_wrapper, get_new_classes
 
 
@@ -53,36 +54,28 @@ def calculate_rating(new_class, student_classes, class_table, shared_classes_tab
 
 
 """
-Generate recommendations for a given student using the "importance" method.
-Recommendations are for the current semester and are based upon all classes taken by the student.
+Returns a list of recommendations for a given student in a single term/semester.
 """
-def generate_recommendations(student, major, random_students, terms):
-# def generate_recommendations(student, major, random_students, terms, course_18_classes):
-    recommendations_by_term = {}
-    candidate_classes_by_term = {}
+def generate_recommendations(student, major, term, random_students):
+# def generate_recommendations(student, major, term, random_students, specific_classes):
+    student_classes = db_wrapper.get_student_classes_before_term(student, term)
+    new_classes = get_new_classes.get_classes_to_take(major, student_classes)
+    # new_classes = [c for c in specific_classes if c not in student_classes]
+    all_classes = student_classes + new_classes
 
-    for term in terms:
-        student_classes = db_wrapper.get_student_classes_before_term(student, term)
-        new_classes = get_new_classes.get_classes_to_take(major, student_classes)
-        # new_classes = [c for c in course_18_classes if c not in student_classes]
-        all_classes = student_classes + new_classes
-
-        candidate_classes_by_term[term] = new_classes
-        
-        class_table = {k:v for k, v in zip(all_classes, xrange(len(all_classes)))}
-        shared_classes_table = create_shared_classes_table(major, random_students, all_classes, class_table)     # consider caching
+    
+    class_table = {k:v for k, v in zip(all_classes, xrange(len(all_classes)))}
+    shared_classes_table = create_shared_classes_table(major, random_students, all_classes, class_table)     # consider caching
 
 
-        # Calculate "importance" of each class that hasn't been taken by the student
-        importance_ratings = {}
+    # Calculate "importance" of each class that hasn't been taken by the student
+    importance_ratings = {}
 
-        for new_class in new_classes:
-            rating = calculate_rating(new_class, student_classes, class_table, shared_classes_table)
-            importance_ratings[new_class] = rating
+    for new_class in new_classes:
+        rating = calculate_rating(new_class, student_classes, class_table, shared_classes_table)
+        importance_ratings[new_class] = rating
 
-        # Create list of classes in order of popularity
-        recommendations_by_term[term] = sorted(importance_ratings, key=importance_ratings.get, reverse=True)
+    # Create list of classes in order of popularity
+    recommendations = sorted(importance_ratings, key=importance_ratings.get, reverse=True)
 
-
-    assert len(recommendations_by_term) == len(candidate_classes_by_term)
-    return recommendations_by_term, candidate_classes_by_term
+    return recommendations
