@@ -17,6 +17,26 @@ from generate_recs import generate_recommendations
 
 
 
+def calc_term_error(num_relevant_classes, taken_classes, recommendations):
+    error = 0
+    for subject in taken_classes:
+        for i in xrange(0, len(recommendations)):
+            rank = None
+            if recommendations[i] == subject:
+                rank = i+1   # rank is not zero-indexed
+                break
+
+        # error_factor = (rank of class - total classes taken) / size of the universe
+        if rank != None:
+            # factor = max(0, (float(rank) - len(relevant_classes)) / num_candidate_classes)
+            factor = float(rank) / len(recommendations)
+            error += factor
+        # print "Error: %s %s" % (student, subject)
+
+    # find the average error for that student's term
+    error /= num_relevant_classes
+    return error
+
 
 """
 Calculate error of recommendations for one student (all terms).
@@ -32,14 +52,19 @@ def calc_error(student, terms, recommendations_by_term, candidate_classes_by_ter
         num_candidate_classes = len(candidate_classes_by_term[prev_term])
         relevant_classes = [c for c in taken_classes if c in candidate_classes_by_term[prev_term]]
 
-        if num_candidate_classes == 0 or len(relevant_classes) == 0:
-            print "No recommendations for %s in term %s" % (student, prev_term)
+        if num_candidate_classes == 0:
+            # print "%s satisfied all requirements on term %s" % (student, prev_term)
             term_errors.append(0)
+            continue
+
+        if len(relevant_classes) == 0:
+            # print "No recommendations for %s in term %s" % (student, prev_term)
+            term_errors.append(1)
             continue
 
         error = 0
         for subject in taken_classes:
-            for i in xrange(0, num_candidate_classes):
+            for i in xrange(0, len(recommendations_by_term[prev_term])):
                 rank = None
                 if recommendations_by_term[prev_term][i] == subject:
                     rank = i+1   # rank is not zero-indexed
@@ -61,9 +86,15 @@ def calc_error(student, terms, recommendations_by_term, candidate_classes_by_ter
 
 
 if __name__ == "__main__":
-    num_students = 10
-    major = "15"
-    outputfile = "Course_15_error_results.csv"
+    num_students = 100
+
+    # 6-2, 6-3, 2, 18, 20, 8, 16 (16 1, 16 2), 15, 14, 7 (7 A)
+    major = "18"
+    outputfile = "Course_%s_error_results.csv" % major
+
+    # mit_classes = db_wrapper.get_all_mit_classes()
+    # course_18_classes = [c for c in mit_classes if c.startswith('18.')]
+    # print course_18_classes
 
 
     # Get "num_students" random students as the test sample
@@ -87,6 +118,8 @@ if __name__ == "__main__":
 
             terms = sorted(random_students_and_terms[student])
             recommendations_by_term, candidate_classes_by_term = generate_recommendations(student, major, random_students, terms)
+            # recommendations_by_term, candidate_classes_by_term = generate_recommendations(student, major, random_students, terms, course_18_classes)
+
 
             writer.writerow(terms[1:])
             writer.writerow(calc_error(student, terms, recommendations_by_term, candidate_classes_by_term))
